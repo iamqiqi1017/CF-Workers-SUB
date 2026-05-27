@@ -12,11 +12,8 @@ let total = 99;//TB
 let timestamp = 4102329600000;//2099-12-31
 
 //节点链接 + 订阅链接
-let MainData = `
-https://cfxr.eu.org/getSub
-`;
+let MainData = "";
 
-let urls = [];
 let subConverter = "http://subapi.iamqiqi.in/"; //在线订阅转换后端，目前使用CM的订阅转换功能。支持自建psub 可自行搭建https://github.com/bulianglin/psub
 let subConfig = "https://ghfast.top/https://raw.githubusercontent.com/iamqiqi1017/myClashRule/refs/heads/main/Clash-Full.ini"; //订阅配置文件
 let subProtocol = 'https';
@@ -66,19 +63,20 @@ export default {
 				},
 			});
 		} else {
+			let mainData = "";
 			if (env.KV) {
 				await 迁移地址列表(env, 'LINK.txt');
 				if (userAgent.includes('mozilla') && !url.search) {
 					await sendMessage(`#编辑订阅 ${FileName}`, request.headers.get('CF-Connecting-IP'), `UA: ${userAgentHeader}</tg-spoiler>\n域名: ${url.hostname}\n<tg-spoiler>入口: ${url.pathname + url.search}</tg-spoiler>`);
 					return await KV(request, env, 'LINK.txt', 访客订阅);
 				} else {
-					MainData = await env.KV.get('LINK.txt') || MainData;
+					mainData = await env.KV.get('LINK.txt') || "";
 				}
 			} else {
-				MainData = env.LINK || MainData;
-				if (env.LINKSUB) urls = await ADD(env.LINKSUB);
+				mainData = env.LINK || MainData;
 			}
-			let 重新汇总所有链接 = await ADD(MainData + '\n' + urls.join('\n'));
+			const envUrls = env.KV ? [] : (env.LINKSUB ? await ADD(env.LINKSUB) : []);
+			let 重新汇总所有链接 = await ADD(mainData + '\n' + envUrls.join('\n'));
 			let 自建节点 = "";
 			let 订阅链接 = "";
 			for (let x of 重新汇总所有链接) {
@@ -88,8 +86,7 @@ export default {
 					自建节点 += x + '\n';
 				}
 			}
-			MainData = 自建节点;
-			urls = await ADD(订阅链接);
+			const urls = await ADD(订阅链接);
 			await sendMessage(`#获取订阅 ${FileName}`, request.headers.get('CF-Connecting-IP'), `UA: ${userAgentHeader}</tg-spoiler>\n域名: ${url.hostname}\n<tg-spoiler>入口: ${url.pathname + url.search}</tg-spoiler>`);
 			const isSubConverterRequest = request.headers.get('subconverter-request') || request.headers.get('subconverter-version') || userAgent.includes('subconverter');
 			let 订阅格式 = 'base64';
@@ -108,9 +105,11 @@ export default {
 			}
 
 			let subConverterUrl;
-			let 订阅转换URL = `${url.origin}/${await MD5MD5(fakeToken)}?token=${fakeToken}`;
+			const 临时订阅URL = `${url.origin}/${await MD5MD5(fakeToken)}?token=${fakeToken}`;
+			let 外部订阅转换URL = "";
+			let 订阅转换URL = "";
 			//console.log(订阅转换URL);
-			let req_data = MainData;
+			let req_data = 自建节点;
 
 			let 追加UA = 'v2rayn';
 			if (url.searchParams.has('b64') || url.searchParams.has('base64')) 订阅格式 = 'base64';
@@ -125,7 +124,7 @@ export default {
 				const 请求订阅响应内容 = await getSUB(订阅链接数组, request, 追加UA, userAgentHeader);
 				console.log(请求订阅响应内容);
 				req_data += 请求订阅响应内容[0].join('\n');
-				if (请求订阅响应内容[1]) 订阅转换URL += "|" + 请求订阅响应内容[1];
+				外部订阅转换URL = 请求订阅响应内容[1];
 				if (订阅格式 == 'base64' && !isSubConverterRequest && 请求订阅响应内容[1].includes('://')) {
 					subConverterUrl = `${subProtocol}://${subConverter}/sub?target=mixed&url=${encodeURIComponent(请求订阅响应内容[1])}&insert=false&config=${encodeURIComponent(subConfig)}&emoji=true&list=false&tfo=false&scv=true&fdn=false&sort=false&new_name=true`;
 					try {
@@ -140,7 +139,6 @@ export default {
 				}
 			}
 
-			if (env.WARP) 订阅转换URL += "|" + (await ADD(env.WARP)).join("|");
 			//修复中文错误
 			const utf8Encoder = new TextEncoder();
 			const encodedData = utf8Encoder.encode(req_data);
@@ -152,6 +150,12 @@ export default {
 			const uniqueLines = new Set(text.split('\n'));
 			const result = [...uniqueLines].join('\n');
 			//console.log(result);
+
+			const 订阅转换URL列表 = [];
+			if (result.trim()) 订阅转换URL列表.push(临时订阅URL);
+			if (外部订阅转换URL) 订阅转换URL列表.push(...外部订阅转换URL.split("|").filter(Boolean));
+			if (env.WARP) 订阅转换URL列表.push(...(await ADD(env.WARP)).filter(Boolean));
+			订阅转换URL = 订阅转换URL列表.join("|");
 
 			let base64Data;
 			try {
@@ -429,9 +433,7 @@ async function getSUB(api, request, 追加UA, userAgentHeader) {
 					//console.log('Base64订阅: ' + response.apiUrl);
 					newapi += base64Decode(content) + '\n'; // 解码并追加内容
 				} else {
-					const 异常订阅LINK = `trojan://CMLiussss@127.0.0.1:8888?security=tls&allowInsecure=1&type=tcp&headerType=none#%E5%BC%82%E5%B8%B8%E8%AE%A2%E9%98%85%20${response.apiUrl.split('://')[1].split('/')[0]}`;
-					console.log('异常订阅: ' + 异常订阅LINK);
-					异常订阅 += `${异常订阅LINK}\n`;
+					console.log('无法识别订阅内容，交给订阅转换后端处理: ' + response.apiUrl);
 					订阅转换URLs.push(response.apiUrl);
 				}
 			} else if (response.passthrough) {
