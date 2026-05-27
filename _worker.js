@@ -17,8 +17,8 @@ https://cfxr.eu.org/getSub
 `;
 
 let urls = [];
-let subConverter = "SUBAPI.cmliussss.net"; //在线订阅转换后端，目前使用CM的订阅转换功能。支持自建psub 可自行搭建https://github.com/bulianglin/psub
-let subConfig = "https://raw.githubusercontent.com/cmliu/ACL4SSR/main/Clash/config/ACL4SSR_Online_MultiCountry.ini"; //订阅配置文件
+let subConverter = "http://subapi.iamqiqi.in/"; //在线订阅转换后端，目前使用CM的订阅转换功能。支持自建psub 可自行搭建https://github.com/bulianglin/psub
+let subConfig = "https://ghfast.top/https://raw.githubusercontent.com/iamqiqi1017/myClashRule/refs/heads/main/Clash-Full.ini"; //订阅配置文件
 let subProtocol = 'https';
 
 export default {
@@ -125,7 +125,7 @@ export default {
 				const 请求订阅响应内容 = await getSUB(订阅链接数组, request, 追加UA, userAgentHeader);
 				console.log(请求订阅响应内容);
 				req_data += 请求订阅响应内容[0].join('\n');
-				订阅转换URL += "|" + 请求订阅响应内容[1];
+				if (请求订阅响应内容[1]) 订阅转换URL += "|" + 请求订阅响应内容[1];
 				if (订阅格式 == 'base64' && !isSubConverterRequest && 请求订阅响应内容[1].includes('://')) {
 					subConverterUrl = `${subProtocol}://${subConverter}/sub?target=mixed&url=${encodeURIComponent(请求订阅响应内容[1])}&insert=false&config=${encodeURIComponent(subConfig)}&emoji=true&list=false&tfo=false&scv=true&fdn=false&sort=false&new_name=true`;
 					try {
@@ -371,7 +371,7 @@ async function getSUB(api, request, 追加UA, userAgentHeader) {
 		return [];
 	} else api = [...new Set(api)]; // 去重
 	let newapi = "";
-	let 订阅转换URLs = "";
+	const 订阅转换URLs = [];
 	let 异常订阅 = "";
 	const controller = new AbortController(); // 创建一个AbortController实例，用于取消请求
 	const timeout = setTimeout(() => {
@@ -380,7 +380,7 @@ async function getSUB(api, request, 追加UA, userAgentHeader) {
 
 	try {
 		// 使用Promise.allSettled等待所有API请求完成，无论成功或失败
-		const responses = await Promise.allSettled(api.map(apiUrl => getUrl(request, apiUrl, 追加UA, userAgentHeader).then(response => response.ok ? response.text() : Promise.reject(response))));
+		const responses = await Promise.allSettled(api.map(apiUrl => getUrl(request, apiUrl, 追加UA, userAgentHeader, controller.signal).then(response => response.ok ? response.text() : Promise.reject(response))));
 
 		// 遍历所有响应
 		const modifiedResponses = responses.map((response, index) => {
@@ -391,14 +391,16 @@ async function getSUB(api, request, 追加UA, userAgentHeader) {
 					return {
 						status: '超时',
 						value: null,
-						apiUrl: api[index] // 将原始的apiUrl添加到返回对象中
+						apiUrl: api[index], // 将原始的apiUrl添加到返回对象中
+						passthrough: true
 					};
 				}
 				console.error(`请求失败: ${api[index]}, 错误信息: ${reason.status} ${reason.statusText}`);
 				return {
 					status: '请求失败',
 					value: null,
-					apiUrl: api[index] // 将原始的apiUrl添加到返回对象中
+					apiUrl: api[index], // 将原始的apiUrl添加到返回对象中
+					passthrough: true
 				};
 			}
 			return {
@@ -416,10 +418,10 @@ async function getSUB(api, request, 追加UA, userAgentHeader) {
 				const content = await response.value || 'null'; // 获取响应的内容
 				if (content.includes('proxies:')) {
 					//console.log('Clash订阅: ' + response.apiUrl);
-					订阅转换URLs += "|" + response.apiUrl; // Clash 配置
+					订阅转换URLs.push(response.apiUrl); // Clash 配置
 				} else if (content.includes('outbounds"') && content.includes('inbounds"')) {
 					//console.log('Singbox订阅: ' + response.apiUrl);
-					订阅转换URLs += "|" + response.apiUrl; // Singbox 配置
+					订阅转换URLs.push(response.apiUrl); // Singbox 配置
 				} else if (content.includes('://')) {
 					//console.log('明文订阅: ' + response.apiUrl);
 					newapi += content + '\n'; // 追加内容
@@ -430,7 +432,11 @@ async function getSUB(api, request, 追加UA, userAgentHeader) {
 					const 异常订阅LINK = `trojan://CMLiussss@127.0.0.1:8888?security=tls&allowInsecure=1&type=tcp&headerType=none#%E5%BC%82%E5%B8%B8%E8%AE%A2%E9%98%85%20${response.apiUrl.split('://')[1].split('/')[0]}`;
 					console.log('异常订阅: ' + 异常订阅LINK);
 					异常订阅 += `${异常订阅LINK}\n`;
+					订阅转换URLs.push(response.apiUrl);
 				}
+			} else if (response.passthrough) {
+				// Worker 预拉取失败时，保留原始订阅地址，让订阅转换后端继续尝试。
+				订阅转换URLs.push(response.apiUrl);
 			}
 		}
 	} catch (error) {
@@ -441,10 +447,10 @@ async function getSUB(api, request, 追加UA, userAgentHeader) {
 
 	const 订阅内容 = await ADD(newapi + 异常订阅); // 将处理后的内容转换为数组
 	// 返回处理后的结果
-	return [订阅内容, 订阅转换URLs];
+	return [订阅内容, 订阅转换URLs.join("|")];
 }
 
-async function getUrl(request, targetUrl, 追加UA, userAgentHeader) {
+async function getUrl(request, targetUrl, 追加UA, userAgentHeader, signal) {
 	// 设置自定义 User-Agent
 	const newHeaders = new Headers(request.headers);
 	newHeaders.set("User-Agent", `${atob('djJyYXlOLzYuNDU=')} cmliu/CF-Workers-SUB ${追加UA}(${userAgentHeader})`);
@@ -455,6 +461,7 @@ async function getUrl(request, targetUrl, 追加UA, userAgentHeader) {
 		headers: newHeaders,
 		body: request.method === "GET" ? null : request.body,
 		redirect: "follow",
+		signal,
 		cf: {
 			// 忽略SSL证书验证
 			insecureSkipVerify: true,
