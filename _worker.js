@@ -10,7 +10,7 @@ let timestamp = 4102329600000;//2099-12-31
 //节点链接 + 订阅链接
 let MainData = "";
 
-let subConverter = "https://subapi.iamqiqi.in/"; //在线订阅转换后端，目前使用CM的订阅转换功能。支持自建psub 可自行搭建https://github.com/bulianglin/psub
+let subConverter = "subapi.iamqiqi.in"; //在线订阅转换后端，目前使用CM的订阅转换功能。支持自建psub 可自行搭建https://github.com/bulianglin/psub
 let subConfig = "https://gcore.jsdelivr.net/gh/iamqiqi1017/myClashRule@9bd9472/Clash-Full.ini"; //订阅配置文件
 // let subConfig = "https://gcore.jsdelivr.net/gh/iamqiqi1017/myClashRule@main/Clash-Full.ini"; //订阅配置文件
 let subProtocol = 'https';
