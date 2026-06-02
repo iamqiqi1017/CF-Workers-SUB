@@ -1,0 +1,8 @@
+name = "subvip-worker"
+main = "_worker.js"
+compatibility_date = "2025-07-23"
+keep_vars = true
+
+[[kv_namespaces]]
+binding = "KV"
+id = "2b14e4c9b5b044ddb0e6100e7f021396"

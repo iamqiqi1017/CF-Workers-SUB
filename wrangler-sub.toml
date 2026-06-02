@@ -1,0 +1,8 @@
+name = "sub-worker"
+main = "_worker.js"
+compatibility_date = "2025-07-23"
+keep_vars = true
+
+[[kv_namespaces]]
+binding = "KV"
+id = "4706e62f106242f3bad428493aa685e6"
