@@ -11,7 +11,7 @@ let MainData = "";
 
 let subConverter = "subapi.iamqiqi.in"; //在线订阅转换后端，目前使用CM的订阅转换功能。支持自建psub 可自行搭建https://github.com/bulianglin/psub
 let subConfig =
-  "https://gcore.jsdelivr.net/gh/iamqiqi1017/myClashRule@e878ca6/Clash-Full.ini"; //订阅配置文件
+  "https://gcore.jsdelivr.net/gh/iamqiqi1017/myClashRule@main/Clash-Full.ini"; //订阅配置文件
 // let subConfig = "https://gcore.jsdelivr.net/gh/iamqiqi1017/myClashRule@main/Clash-Full.ini"; //订阅配置文件
 let subProtocol = "https";
 const SUBSCRIPTION_FETCH_USER_AGENT = "v2rayN/6.45";
